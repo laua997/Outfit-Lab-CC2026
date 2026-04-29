@@ -1,4 +1,5 @@
-import { REPLICATE_PROXY_URL, IDM_VTON_VERSION } from "./config.js";
+import { IDM_VTON_VERSION } from "./config.js";
+import { getReplicateProxyUrl, getReplicateProxyAuthHeaders } from "./replicate-endpoint.js";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -104,8 +105,8 @@ function buildGarmentDes(name, category) {
 }
 
 /**
- * Run IDM-VTON via ITP create_n_get proxy.
- * @param {{ humanUrl: string, garmUrl: string, garmentName: string, category: string, crop: boolean, forceDc?: boolean, proxyToken?: string }} p
+ * Run IDM-VTON via create_n_get-style proxy (ITP or your own worker).
+ * @param {{ humanUrl: string, garmUrl: string, garmentName: string, category: string, crop: boolean, forceDc?: boolean }} p
  */
 export async function runIdmVtonStep(p) {
   /** @type {Record<string, unknown>} */
@@ -127,16 +128,14 @@ export async function runIdmVtonStep(p) {
     input,
   };
 
-  const headers = { "Content-Type": "application/json" };
-  const t = p.proxyToken?.trim();
-  if (t) headers.Authorization = `Bearer ${t}`;
+  const headers = { "Content-Type": "application/json", ...getReplicateProxyAuthHeaders() };
 
   const maxAttempts = 8;
   let lastStatus = 0;
   let lastRaw = "";
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const res = await fetch(REPLICATE_PROXY_URL, {
+    const res = await fetch(getReplicateProxyUrl(), {
       method: "POST",
       headers,
       body: JSON.stringify(body),

@@ -1,4 +1,4 @@
-import { REPLICATE_PROXY_URL } from "./config.js";
+import { getReplicateProxyUrl, getReplicateProxyAuthHeaders } from "./replicate-endpoint.js";
 
 function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
@@ -182,9 +182,9 @@ export async function hostRawBase64OnItpProxy(rawBase64, fileFormat) {
   let lastRaw = "";
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-    const res = await fetch(REPLICATE_PROXY_URL, {
+    const res = await fetch(getReplicateProxyUrl(), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...getReplicateProxyAuthHeaders() },
       body: JSON.stringify(payload),
     });
     const raw = await res.text();

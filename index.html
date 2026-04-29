@@ -6,7 +6,7 @@
     <title>Outfit Lab CC2026</title>
     <meta
       name="description"
-      content="Virtual try-on demo — GitHub Pages + Firebase + ITP Replicate proxy."
+      content="          Virtual try-on demo — GitHub Pages + Firebase + Replicate (ITP proxy or your own worker)."
     />
     <link rel="stylesheet" href="css/styles.css" />
   </head>
@@ -16,8 +16,9 @@
         <p class="tag">Clueless-inspired</p>
         <h1>Outfit Lab</h1>
         <p>
-          Upload a full-body photo and clothing images, pick pieces, and run virtual try-on (IDM-VTON via the ITP/IMA
-          Replicate proxy). Your closet syncs per Google account in Firebase.
+          Upload a full-body photo and clothing images, pick pieces, and run virtual try-on (IDM-VTON). Use the class
+          ITP proxy or your own Replicate account via the optional worker below. Your closet syncs per Google account in
+          Firebase.
         </p>
       </header>
 
@@ -26,6 +27,30 @@
         <button type="button" class="btn btn-primary" id="btnGoogle">Sign in with Google</button>
         <button type="button" class="btn btn-ghost hidden" id="btnSignOut">Sign out</button>
       </div>
+
+      <section class="panel" id="replicatePanel">
+        <h2>Your Replicate (optional)</h2>
+        <p class="hint">
+          Replicate’s API is not callable directly from GitHub Pages (no CORS). To use <strong>your</strong> account,
+          deploy the worker in <code>cloudflare-worker/</code>, add the <code>REPLICATE_API_TOKEN</code> secret, then
+          paste the worker URL here. Leave blank to keep using the ITP class proxy.
+        </p>
+        <label class="hint" for="replicateProxyUrl">Worker / proxy URL</label>
+        <input
+          id="replicateProxyUrl"
+          class="input-field"
+          type="url"
+          placeholder="https://outfit-lab-replicate-proxy.your-subdomain.workers.dev"
+          autocomplete="off"
+        />
+        <label class="hint" for="replicateTokenInput">Replicate API token (only if your worker forwards it)</label>
+        <input id="replicateTokenInput" class="input-field" type="password" autocomplete="off" placeholder="r8_…" />
+        <div class="row" style="margin-top: 0.75rem">
+          <button type="button" class="btn" id="btnReplicateSave">Save in this browser</button>
+          <button type="button" class="btn btn-ghost" id="btnReplicateClear">Clear saved</button>
+        </div>
+        <p id="replicateSettingsMsg" class="status" style="margin-top: 0.5rem"></p>
+      </section>
 
       <section id="gate" class="panel">
         <h2>Why sign in?</h2>

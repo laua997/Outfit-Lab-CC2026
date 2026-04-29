@@ -15,6 +15,14 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
 import { runIdmVtonStepWithCropRetry } from "./replicate-proxy.js";
 import {
+  getReplicateProxyUrl,
+  usesItpDefaultProxy,
+  getReplicateTokenFromStorage,
+  getSavedProxyUrlOnly,
+  saveReplicateTokenToStorage,
+  saveReplicateProxyUrlToStorage,
+} from "./replicate-endpoint.js";
+import {
   fileToRawBase64,
   dataUrlFromStored,
   hostRawBase64OnItpProxy,
@@ -68,6 +76,11 @@ const els = {
   resultPanel: document.getElementById("resultPanel"),
   resultImg: document.getElementById("resultImg"),
   globalMsg: document.getElementById("globalMsg"),
+  replicateProxyUrl: document.getElementById("replicateProxyUrl"),
+  replicateTokenInput: document.getElementById("replicateTokenInput"),
+  btnReplicateSave: document.getElementById("btnReplicateSave"),
+  btnReplicateClear: document.getElementById("btnReplicateClear"),
+  replicateSettingsMsg: document.getElementById("replicateSettingsMsg"),
 };
 
 function formatFirebaseError(err) {
@@ -116,6 +129,22 @@ function setBusy(b) {
   els.btnTryOn.disabled = b;
   els.btnGoogle.disabled = b;
   els.btnSignOut.disabled = b;
+  if (els.btnReplicateSave) els.btnReplicateSave.disabled = b;
+  if (els.btnReplicateClear) els.btnReplicateClear.disabled = b;
+}
+
+function hydrateReplicateSettingsForm() {
+  if (!els.replicateProxyUrl || !els.replicateSettingsMsg) return;
+  els.replicateProxyUrl.value = getSavedProxyUrlOnly();
+  if (els.replicateTokenInput) els.replicateTokenInput.value = "";
+  const active = getReplicateProxyUrl();
+  const hasToken = !!getReplicateTokenFromStorage();
+  if (usesItpDefaultProxy()) {
+    els.replicateSettingsMsg.textContent =
+      "Try-on uses the ITP class proxy at api.create_n_get (no Replicate token in this browser).";
+  } else {
+    els.replicateSettingsMsg.textContent = `Requests go to: ${active}${hasToken ? " · Bearer token saved in this browser" : " · add token below if the worker does not use a secret"}`;
+  }
 }
 
 function userRoot() {
@@ -559,3 +588,23 @@ onAuthStateChanged(auth, (user) => {
 });
 
 syncDressModeUi();
+hydrateReplicateSettingsForm();
+
+if (els.btnReplicateSave && els.btnReplicateClear) {
+  els.btnReplicateSave.addEventListener("click", () => {
+    showError(null);
+    saveReplicateProxyUrlToStorage(els.replicateProxyUrl?.value || "");
+    saveReplicateTokenToStorage(els.replicateTokenInput?.value || "");
+    invalidateBodyHostCache();
+    hydrateReplicateSettingsForm();
+  });
+  els.btnReplicateClear.addEventListener("click", () => {
+    showError(null);
+    saveReplicateProxyUrlToStorage("");
+    saveReplicateTokenToStorage("");
+    if (els.replicateProxyUrl) els.replicateProxyUrl.value = "";
+    if (els.replicateTokenInput) els.replicateTokenInput.value = "";
+    invalidateBodyHostCache();
+    hydrateReplicateSettingsForm();
+  });
+}
