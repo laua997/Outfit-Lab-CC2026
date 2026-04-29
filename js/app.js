@@ -21,6 +21,7 @@ import {
   getSavedProxyUrlOnly,
   saveReplicateTokenToStorage,
   saveReplicateProxyUrlToStorage,
+  isOwnProxyConfiguredInSiteConfig,
 } from "./replicate-endpoint.js";
 import {
   fileToRawBase64,
@@ -76,6 +77,7 @@ const els = {
   resultPanel: document.getElementById("resultPanel"),
   resultImg: document.getElementById("resultImg"),
   globalMsg: document.getElementById("globalMsg"),
+  replicatePanel: document.getElementById("replicatePanel"),
   replicateProxyUrl: document.getElementById("replicateProxyUrl"),
   replicateTokenInput: document.getElementById("replicateTokenInput"),
   btnReplicateSave: document.getElementById("btnReplicateSave"),
@@ -134,6 +136,11 @@ function setBusy(b) {
 }
 
 function hydrateReplicateSettingsForm() {
+  if (isOwnProxyConfiguredInSiteConfig()) {
+    els.replicatePanel?.classList.add("hidden");
+    return;
+  }
+  els.replicatePanel?.classList.remove("hidden");
   if (!els.replicateProxyUrl || !els.replicateSettingsMsg) return;
   void getReplicateProxyUrl();
   els.replicateProxyUrl.value = getSavedProxyUrlOnly();

@@ -80,19 +80,25 @@ function clearInvalidStoredProxyUrl() {
   }
 }
 
+/** True when `OWN_REPLICATE_PROXY_URL` in config.js is set (deploy-time binding — no form needed). */
+export function isOwnProxyConfiguredInSiteConfig() {
+  const own = String(OWN_REPLICATE_PROXY_URL || "").trim();
+  return !!(own && isValidReplicateProxyUrl(own));
+}
+
 /**
- * Active proxy base URL (no trailing slash). ITP default unless overridden in config or localStorage.
+ * Active proxy base URL (no trailing slash). Site config wins, then localStorage, then ITP default.
  */
 export function getReplicateProxyUrl() {
   clearInvalidStoredProxyUrl();
+  const own = String(OWN_REPLICATE_PROXY_URL || "").trim();
+  if (own && isValidReplicateProxyUrl(own)) return own.replace(/\/$/, "");
   try {
     const u = readStoredProxyUrl();
     if (u && isValidReplicateProxyUrl(u)) return u.replace(/\/$/, "");
   } catch {
     /* private mode */
   }
-  const own = String(OWN_REPLICATE_PROXY_URL || "").trim();
-  if (own && isValidReplicateProxyUrl(own)) return own.replace(/\/$/, "");
   return REPLICATE_PROXY_URL;
 }
 

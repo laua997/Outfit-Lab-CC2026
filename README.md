@@ -122,9 +122,9 @@ with JSON shaped like Replicate’s HTTP API (`version` + `input` for IDM‑VTON
 
 1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/), then from `cloudflare-worker/` run `wrangler login` and `wrangler secret put REPLICATE_API_TOKEN` (paste `r8_…`).
 2. `wrangler deploy` — copy the printed `https://…workers.dev` URL as-is (three dot-separated parts before `.workers.dev`, e.g. `https://outfit-lab-replicate-proxy.myaccount.workers.dev`).
-3. On the live site, open **Your Replicate (optional)**, paste that URL, **Save in this browser**. Leave the token field empty if the worker secret is set; otherwise paste `r8_…` so the worker receives `Authorization: Bearer …` from the browser (less ideal, but works for personal use).
+3. **Recommended (no typing on the live site):** set `OWN_REPLICATE_PROXY_URL` in `js/config.js` to that same `https://…workers.dev` URL, commit, and push. Your Replicate token stays only in the worker (`wrangler secret`). The **Your Replicate** panel is hidden when this config value is set.
 
-Alternatively set `OWN_REPLICATE_PROXY_URL` in `js/config.js` before building so the default proxy is yours without localStorage.
+4. **Or** leave `OWN_REPLICATE_PROXY_URL` empty and use the panel in the browser to save the URL (and token only if the worker has no secret).
 
 If the worker times out on very slow runs, upgrade the Workers plan or rely on Replicate’s `Prefer: wait` behavior (the worker sends that header).
 

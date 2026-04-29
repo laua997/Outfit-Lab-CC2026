@@ -14,8 +14,9 @@ export const firebaseConfig = {
 export const REPLICATE_PROXY_URL = "https://itp-ima-replicate-proxy.web.app/api/create_n_get";
 
 /**
- * Optional: your own proxy (e.g. Cloudflare Worker in /cloudflare-worker). Same POST JSON as the ITP endpoint.
- * Browser cannot call api.replicate.com directly (no CORS). Overrides ITP when set (unless localStorage URL wins).
+ * Optional: your Cloudflare Worker URL (same POST JSON as the ITP endpoint). Put your billing here without any UI:
+ * set this string, deploy Pages — token stays only in `wrangler secret put REPLICATE_API_TOKEN`.
+ * Takes precedence over “saved in browser” proxy URL when non-empty.
  */
 export const OWN_REPLICATE_PROXY_URL = "";
 
