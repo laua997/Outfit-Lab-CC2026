@@ -4,7 +4,6 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
-  authStateReady,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref as dbRef,
@@ -123,6 +122,12 @@ function userRoot() {
   return `users/${uid}`;
 }
 
+async function waitForAuthReady() {
+  if (typeof auth.authStateReady === "function") {
+    await auth.authStateReady();
+  }
+}
+
 async function refreshBodyPreview() {
   if (!uid) return;
   const snap = await get(dbRef(db, `${userRoot()}/body`));
@@ -162,7 +167,7 @@ async function onBodyFileChange(e) {
   showError(null);
   try {
     setBusy(true);
-    await authStateReady(auth);
+    await waitForAuthReady();
     if (!auth.currentUser) {
       showError("Not signed in. Please sign in again.");
       return;
@@ -201,7 +206,7 @@ async function onGarmentSubmit(e) {
   }
   try {
     setBusy(true);
-    await authStateReady(auth);
+    await waitForAuthReady();
     if (!auth.currentUser) {
       showError("Not signed in. Please sign in again.");
       return;
@@ -472,7 +477,7 @@ async function onAuth(user) {
   els.gate.classList.add("hidden");
   els.app.classList.remove("hidden");
 
-  await authStateReady(auth);
+  await waitForAuthReady();
   await refreshBodyPreview();
   wireGarmentsListener();
 }
