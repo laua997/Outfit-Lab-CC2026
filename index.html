@@ -35,14 +35,19 @@
           deploy the worker in <code>cloudflare-worker/</code>, add the <code>REPLICATE_API_TOKEN</code> secret, then
           paste the worker URL here. Leave blank to keep using the ITP class proxy.
         </p>
-        <label class="hint" for="replicateProxyUrl">Worker / proxy URL</label>
+        <label class="hint" for="replicateProxyUrl">Worker / proxy URL (one line, https only)</label>
         <input
           id="replicateProxyUrl"
           class="input-field"
           type="url"
-          placeholder="https://outfit-lab-replicate-proxy.your-subdomain.workers.dev"
+          inputmode="url"
+          spellcheck="false"
+          placeholder="https://your-worker.workers.dev"
           autocomplete="off"
         />
+        <p class="hint" style="margin-top: 0.25rem; font-size: 0.8rem">
+          Do not paste terminal commands here — only the URL Wrangler prints after <code>wrangler deploy</code>.
+        </p>
         <label class="hint" for="replicateTokenInput">Replicate API token (only if your worker forwards it)</label>
         <input id="replicateTokenInput" class="input-field" type="password" autocomplete="off" placeholder="r8_…" />
         <div class="row" style="margin-top: 0.75rem">

@@ -135,15 +135,22 @@ function setBusy(b) {
 
 function hydrateReplicateSettingsForm() {
   if (!els.replicateProxyUrl || !els.replicateSettingsMsg) return;
+  void getReplicateProxyUrl();
   els.replicateProxyUrl.value = getSavedProxyUrlOnly();
   if (els.replicateTokenInput) els.replicateTokenInput.value = "";
   const active = getReplicateProxyUrl();
   const hasToken = !!getReplicateTokenFromStorage();
   if (usesItpDefaultProxy()) {
     els.replicateSettingsMsg.textContent =
-      "Try-on uses the ITP class proxy at api.create_n_get (no Replicate token in this browser).";
+      "Try-on uses the ITP class proxy (no Replicate token in this browser). Paste only an https://… worker URL if you use your own Cloudflare worker.";
   } else {
-    els.replicateSettingsMsg.textContent = `Requests go to: ${active}${hasToken ? " · Bearer token saved in this browser" : " · add token below if the worker does not use a secret"}`;
+    let host = active;
+    try {
+      host = new URL(active).hostname;
+    } catch {
+      /* keep full string */
+    }
+    els.replicateSettingsMsg.textContent = `Using your proxy (${host})${hasToken ? " · Bearer token saved in this browser" : " · add token if the worker has no secret"}`;
   }
 }
 
@@ -593,7 +600,11 @@ hydrateReplicateSettingsForm();
 if (els.btnReplicateSave && els.btnReplicateClear) {
   els.btnReplicateSave.addEventListener("click", () => {
     showError(null);
-    saveReplicateProxyUrlToStorage(els.replicateProxyUrl?.value || "");
+    const urlRes = saveReplicateProxyUrlToStorage(els.replicateProxyUrl?.value || "");
+    if (!urlRes.ok) {
+      if (els.replicateSettingsMsg) els.replicateSettingsMsg.textContent = urlRes.error;
+      return;
+    }
     saveReplicateTokenToStorage(els.replicateTokenInput?.value || "");
     invalidateBodyHostCache();
     hydrateReplicateSettingsForm();
