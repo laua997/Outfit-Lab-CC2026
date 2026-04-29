@@ -121,7 +121,7 @@ with JSON shaped like Replicate’s HTTP API (`version` + `input` for IDM‑VTON
 **Your own Replicate billing:** `api.replicate.com` does not send CORS headers, so a static GitHub Pages app cannot call it with your API token. Use the included **Cloudflare Worker** as a tiny CORS-safe bridge:
 
 1. Install [Wrangler](https://developers.cloudflare.com/workers/wrangler/install-and-update/), then from `cloudflare-worker/` run `wrangler login` and `wrangler secret put REPLICATE_API_TOKEN` (paste `r8_…`).
-2. `wrangler deploy` — note the worker URL (e.g. `https://outfit-lab-replicate-proxy.<you>.workers.dev`).
+2. `wrangler deploy` — copy the printed `https://…workers.dev` URL as-is (three dot-separated parts before `.workers.dev`, e.g. `https://outfit-lab-replicate-proxy.myaccount.workers.dev`).
 3. On the live site, open **Your Replicate (optional)**, paste that URL, **Save in this browser**. Leave the token field empty if the worker secret is set; otherwise paste `r8_…` so the worker receives `Authorization: Bearer …` from the browser (less ideal, but works for personal use).
 
 Alternatively set `OWN_REPLICATE_PROXY_URL` in `js/config.js` before building so the default proxy is yours without localStorage.

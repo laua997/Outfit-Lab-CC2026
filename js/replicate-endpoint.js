@@ -4,7 +4,21 @@ const LS_PROXY = "outfit_lab_replicate_proxy_url";
 const LS_TOKEN = "outfit_lab_replicate_token";
 
 /**
- * Single HTTPS (or http://localhost) URL — rejects pasted README / shell text.
+ * Reject docs/chat placeholders (e.g. &lt;your-subdomain&gt;) that still parse as URLs.
+ * @param {string} hostname
+ */
+function hostnameLooksLikePlaceholder(hostname) {
+  const h = String(hostname || "").toLowerCase();
+  if (!h) return true;
+  if (h.includes("&lt;") || h.includes("&gt;") || h.includes("&amp;") || h.includes("&")) return true;
+  if (h.includes("<") || h.includes(">")) return true;
+  if (h.includes("your-subdomain") || h.includes("yoursubdomain")) return true;
+  if (/\byour-worker\b\.workers\.dev$/i.test(h)) return true;
+  return false;
+}
+
+/**
+ * Single HTTPS (or http://localhost) URL — rejects pasted README / shell text / placeholders.
  * @param {string} s
  */
 export function isValidReplicateProxyUrl(s) {
@@ -12,14 +26,37 @@ export function isValidReplicateProxyUrl(s) {
   if (!u || u.length > 2048) return false;
   if (/\s/.test(u)) return false;
   if (/[<>]/.test(u)) return false;
+  if (/&#?\w+;/.test(u)) return false;
   if (/wrangler|REPLICATE_API_TOKEN|#\s*paste|cd\s+cloudflare/i.test(u)) return false;
   try {
     const parsed = new URL(u);
     const okHttpLocal = parsed.protocol === "http:" && parsed.hostname === "localhost";
     if (parsed.protocol !== "https:" && !okHttpLocal) return false;
-    return !!parsed.hostname;
+    if (!parsed.hostname || hostnameLooksLikePlaceholder(parsed.hostname)) return false;
+    return true;
   } catch {
     return false;
+  }
+}
+
+/**
+ * fetch() to the try-on proxy with a clearer error than "Failed to fetch".
+ * @param {string} url
+ * @param {RequestInit} [init]
+ */
+export async function proxyFetch(url, init) {
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    const m = e instanceof Error ? e.message : String(e);
+    if (e instanceof TypeError || /failed to fetch/i.test(m)) {
+      throw new Error(
+        "Could not reach the try-on proxy (network error or invalid URL). " +
+          "If you use a Cloudflare worker, paste the exact https URL from Wrangler (no placeholders). " +
+          "Click “Clear saved” to fall back to the class ITP proxy.",
+      );
+    }
+    throw e instanceof Error ? e : new Error(m);
   }
 }
 
@@ -103,7 +140,7 @@ export function saveReplicateProxyUrlToStorage(url) {
       return {
         ok: false,
         error:
-          "That is not a valid proxy URL. Paste only one line, starting with https:// (your Cloudflare worker URL). Do not paste README shell commands.",
+          "That is not a valid proxy URL. Use the real https://…workers.dev link from Wrangler (replace any placeholder text with your actual subdomain). Do not paste README commands.",
       };
     }
     localStorage.setItem(LS_PROXY, u);
