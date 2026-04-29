@@ -56,6 +56,8 @@ service firebase.storage {
 
 Tighten further for production (size limits, content‑type checks, etc.).
 
+If uploads seem to “do nothing”, check the browser **Console** for `storage/unauthorized` or `permission-denied`. That almost always means **Storage** or **Realtime Database** rules are still default‑deny (the on‑page banner now spells this out after the next deploy).
+
 ### Authorized domains
 
 Firebase console → Authentication → Settings → **Authorized domains** must include:

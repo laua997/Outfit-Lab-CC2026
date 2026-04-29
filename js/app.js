@@ -4,6 +4,7 @@ import {
   signInWithPopup,
   signOut,
   onAuthStateChanged,
+  authStateReady,
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import {
   ref as dbRef,
@@ -60,16 +61,55 @@ const els = {
   errorLine: document.getElementById("errorLine"),
   resultPanel: document.getElementById("resultPanel"),
   resultImg: document.getElementById("resultImg"),
+  globalMsg: document.getElementById("globalMsg"),
 };
+
+function formatFirebaseError(err) {
+  if (!err) return "Unknown error";
+  const code = /** @type {{ code?: string; message?: string }} */ (err).code || "";
+  const msg = /** @type {{ message?: string }} */ (err).message || String(err);
+  if (code === "storage/unauthorized") {
+    return (
+      "Firebase Storage blocked the upload (unauthorized). " +
+      "Update Storage security rules so a signed-in user can read/write `users/{uid}/...` (see README in this repo)."
+    );
+  }
+  if (code === "storage/canceled") {
+    return "Upload was canceled.";
+  }
+  if (code === "permission-denied") {
+    return (
+      "Firebase Realtime Database denied the write (permission denied). " +
+      "Update RTDB rules so a signed-in user can read/write `users/{uid}/...` (see README)."
+    );
+  }
+  return msg;
+}
+
+function setGlobalMessage(msg, kind) {
+  if (!els.globalMsg) return;
+  if (!msg) {
+    els.globalMsg.textContent = "";
+    els.globalMsg.classList.add("hidden");
+    els.globalMsg.classList.remove("is-error", "is-info");
+    return;
+  }
+  els.globalMsg.textContent = msg;
+  els.globalMsg.classList.remove("hidden", "is-error", "is-info");
+  els.globalMsg.classList.add(kind === "error" ? "is-error" : "is-info");
+  els.globalMsg.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
 
 function showError(msg) {
   if (!msg) {
     els.errorLine.classList.add("hidden");
     els.errorLine.textContent = "";
+    setGlobalMessage("", "info");
     return;
   }
   els.errorLine.textContent = msg;
   els.errorLine.classList.remove("hidden");
+  setGlobalMessage(msg, "error");
 }
 
 function setBusy(b) {
@@ -94,10 +134,26 @@ async function refreshBodyPreview() {
   }
   const v = snap.val();
   bodyStoragePath = v.storagePath;
-  const url = await getDownloadURL(stRef(storage, bodyStoragePath));
-  els.bodyPreview.src = url;
-  els.bodyPreview.classList.remove("hidden");
-  els.bodyPlaceholder.classList.add("hidden");
+  try {
+    const url = await getDownloadURL(stRef(storage, bodyStoragePath));
+    els.bodyPreview.onerror = () => {
+      showError(
+        "Could not display the body photo (image failed to load). Check Storage rules allow **read** for `users/{uid}/...`.",
+      );
+      els.bodyPreview.classList.add("hidden");
+      els.bodyPlaceholder.classList.remove("hidden");
+    };
+    els.bodyPreview.src = url;
+    if ("decode" in els.bodyPreview) {
+      await els.bodyPreview.decode();
+    }
+    els.bodyPreview.classList.remove("hidden");
+    els.bodyPlaceholder.classList.add("hidden");
+  } catch (err) {
+    showError(formatFirebaseError(err));
+    els.bodyPreview.classList.add("hidden");
+    els.bodyPlaceholder.classList.remove("hidden");
+  }
 }
 
 async function onBodyFileChange(e) {
@@ -106,6 +162,12 @@ async function onBodyFileChange(e) {
   showError(null);
   try {
     setBusy(true);
+    await authStateReady(auth);
+    if (!auth.currentUser) {
+      showError("Not signed in. Please sign in again.");
+      return;
+    }
+    setGlobalMessage("Uploading body photo…", "info");
     const path = `${userRoot()}/body/current`;
     await uploadBytes(stRef(storage, path), file, { contentType: file.type || "image/jpeg" });
     await set(dbRef(db, `${userRoot()}/body`), {
@@ -114,8 +176,10 @@ async function onBodyFileChange(e) {
     });
     bodyStoragePath = path;
     await refreshBodyPreview();
+    setGlobalMessage("Body photo saved.", "info");
+    setTimeout(() => setGlobalMessage("", "info"), 2500);
   } catch (err) {
-    showError(err instanceof Error ? err.message : "Could not upload body photo");
+    showError(formatFirebaseError(err));
   } finally {
     setBusy(false);
     e.target.value = "";
@@ -137,6 +201,12 @@ async function onGarmentSubmit(e) {
   }
   try {
     setBusy(true);
+    await authStateReady(auth);
+    if (!auth.currentUser) {
+      showError("Not signed in. Please sign in again.");
+      return;
+    }
+    setGlobalMessage("Saving garment…", "info");
     const listRef = dbRef(db, `${userRoot()}/garments`);
     const newRef = push(listRef);
     const id = newRef.key;
@@ -150,8 +220,10 @@ async function onGarmentSubmit(e) {
       createdAt: Date.now(),
     });
     form.reset();
+    setGlobalMessage("Garment saved to closet.", "info");
+    setTimeout(() => setGlobalMessage("", "info"), 2500);
   } catch (err) {
-    showError(err instanceof Error ? err.message : "Could not save garment");
+    showError(formatFirebaseError(err));
   } finally {
     setBusy(false);
   }
@@ -170,7 +242,7 @@ async function deleteGarment(id) {
     if (selectedBottomId === id) selectedBottomId = null;
     if (selectedDressId === id) selectedDressId = null;
   } catch (err) {
-    showError(err instanceof Error ? err.message : "Delete failed");
+    showError(formatFirebaseError(err));
   } finally {
     setBusy(false);
   }
@@ -368,7 +440,7 @@ function wireGarmentsListener() {
         })),
       );
     } catch (e) {
-      showError(e instanceof Error ? e.message : "Could not load closet images");
+      showError(formatFirebaseError(e));
       garments = [];
     }
     renderAllGrids();
@@ -400,6 +472,7 @@ async function onAuth(user) {
   els.gate.classList.add("hidden");
   els.app.classList.remove("hidden");
 
+  await authStateReady(auth);
   await refreshBodyPreview();
   wireGarmentsListener();
 }

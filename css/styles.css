@@ -267,6 +267,27 @@ label.drop input {
   display: none !important;
 }
 
+.global-msg {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 0.65rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+.global-msg.is-error {
+  border-color: #f0c4c4;
+  background: #fff5f5;
+  color: var(--danger);
+}
+
+.global-msg.is-info {
+  color: var(--muted);
+}
+
 footer.site-footer {
   margin-top: 2rem;
   text-align: center;
