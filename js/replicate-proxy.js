@@ -75,6 +75,16 @@ function parseProxyError(status, raw) {
   return `Proxy (${status}): ${trimmed.slice(0, 800)}`;
 }
 
+/** Map noisy HTTP 500 bodies to the same copy as JSON `failed` predictions (and keep crop-retry matching). */
+function friendlyHttpProxyError(status, raw) {
+  const msg = parseProxyError(status, raw);
+  const lower = msg.toLowerCase();
+  if (lower.includes("list index out of range") || lower.includes("index out of range")) {
+    return normalizeTryOnErrorMessage("list index out of range");
+  }
+  return msg;
+}
+
 /**
  * Run IDM-VTON via ITP create_n_get proxy.
  * @param {{ humanUrl: string, garmUrl: string, garmentName: string, category: string, crop: boolean, proxyToken?: string }} p
@@ -114,7 +124,7 @@ export async function runIdmVtonStep(p) {
         await delayForRetry(attempt, res, raw);
         continue;
       }
-      throw new Error(parseProxyError(res.status, raw));
+      throw new Error(friendlyHttpProxyError(res.status, raw));
     }
 
     let data;
@@ -141,19 +151,24 @@ export async function runIdmVtonStep(p) {
     throw new Error(normalizeTryOnErrorMessage(data.error || `Unexpected status: ${data.status || "unknown"}`));
   }
 
-  throw new Error(parseProxyError(lastStatus, lastRaw));
+  throw new Error(friendlyHttpProxyError(lastStatus, lastRaw));
 }
 
 export function isRecoverableModelError(message) {
   const lower = String(message || "").toLowerCase();
-  return lower.includes("processing this image pair") || lower.includes("list index out of range");
+  return (
+    lower.includes("processing this image pair") ||
+    lower.includes("list index out of range") ||
+    lower.includes("index out of range")
+  );
 }
 
 /**
  * Try crop false then true on recoverable model errors.
  */
 export async function runIdmVtonStepWithCropRetry(p) {
-  const attempts = [false, true];
+  /** Replicate notes: use crop when the person photo is not ~3:4 — most phone shots need this first. */
+  const attempts = [true, false];
   let lastErr = null;
   for (let i = 0; i < attempts.length; i += 1) {
     try {

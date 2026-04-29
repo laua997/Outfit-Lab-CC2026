@@ -73,19 +73,68 @@ export function proxyFormatFromMime(mimeType) {
   return "jpg";
 }
 
+function mimeFromProxyFormat(fileFormat) {
+  return fileFormat === "png" ? "image/png" : "image/jpeg";
+}
+
+/**
+ * Decode base64 image, downscale if larger than maxSide (long edge), re-encode as JPEG.
+ * Helps IDM-VTON / parsing pipelines that can throw on extreme resolutions.
+ * @param {string} rawBase64
+ * @param {string} mimeType
+ * @param {number} maxSide
+ * @returns {Promise<{ raw: string, fileFormat: "jpg"|"png" }>}
+ */
+export async function clampRawBase64ToMaxSide(rawBase64, mimeType, maxSide = 1024) {
+  const dataUrl = dataUrlFromStored(mimeType, rawBase64);
+  const img = await new Promise((resolve, reject) => {
+    const el = new Image();
+    el.onload = () => resolve(el);
+    el.onerror = () => reject(new Error("Could not decode image for resize."));
+    el.src = dataUrl;
+  });
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) {
+    return { raw: rawBase64, fileFormat: proxyFormatFromMime(mimeType) };
+  }
+  const long = Math.max(w, h);
+  if (long <= maxSide) {
+    return { raw: rawBase64, fileFormat: proxyFormatFromMime(mimeType) };
+  }
+  const scale = maxSide / long;
+  const tw = Math.max(1, Math.round(w * scale));
+  const th = Math.max(1, Math.round(h * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = tw;
+  canvas.height = th;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return { raw: rawBase64, fileFormat: proxyFormatFromMime(mimeType) };
+  }
+  ctx.drawImage(img, 0, 0, tw, th);
+  const out = canvas.toDataURL("image/jpeg", 0.9);
+  const i = out.indexOf(",");
+  const raw = i >= 0 ? out.slice(i + 1) : out;
+  return { raw, fileFormat: "jpg" };
+}
+
 /**
  * Turn local image bytes into a public HTTPS URL via ITP proxy (Flux call that only hosts media).
  * @param {string} rawBase64
  * @param {"jpg"|"png"} fileFormat
  */
 export async function hostRawBase64OnItpProxy(rawBase64, fileFormat) {
+  const mime = mimeFromProxyFormat(fileFormat);
+  const sized = await clampRawBase64ToMaxSide(rawBase64, mime, 1024);
+
   const payload = {
     model: "black-forest-labs/flux-schnell",
     fieldToConvertBase64ToURL: "image",
-    fileFormat,
+    fileFormat: sized.fileFormat,
     input: {
       prompt: "host",
-      image: rawBase64,
+      image: sized.raw,
     },
   };
 
