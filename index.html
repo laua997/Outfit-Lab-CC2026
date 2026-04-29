@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Outfit Lab CC2026</title>
+    <meta
+      name="description"
+      content="Virtual try-on demo — GitHub Pages + Firebase + ITP Replicate proxy."
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <main>
+      <header class="hero">
+        <p class="tag">Clueless-inspired</p>
+        <h1>Outfit Lab</h1>
+        <p>
+          Upload a full-body photo and clothing images, pick pieces, and run virtual try-on (IDM-VTON via the ITP/IMA
+          Replicate proxy). Your closet syncs per Google account in Firebase.
+        </p>
+      </header>
+
+      <div class="auth-bar">
+        <span id="authStatus" class="status">Sign in to save your closet and run try-on.</span>
+        <button type="button" class="btn btn-primary" id="btnGoogle">Sign in with Google</button>
+        <button type="button" class="btn btn-ghost hidden" id="btnSignOut">Sign out</button>
+      </div>
+
+      <section id="gate" class="panel">
+        <h2>Why sign in?</h2>
+        <p class="hint">
+          Firebase stores your body photo, garment images, and closet metadata under your account. Try-on calls go from
+          your browser to the ITP proxy (no personal Replicate billing required for the proxy path).
+        </p>
+      </section>
+
+      <div id="app" class="hidden">
+        <div class="grid-2">
+          <section class="panel">
+            <h2>1. Your body photo</h2>
+            <p class="hint">Full-body, standing — clearer photos give better results.</p>
+            <label class="drop">
+              <input id="bodyFile" type="file" accept="image/*" />
+              <span id="bodyPlaceholder" class="hint">Tap to upload full-body photo</span>
+              <img id="bodyPreview" class="drop-preview hidden" alt="Body reference" />
+            </label>
+          </section>
+
+          <section class="panel">
+            <h2>2. Add a clothing photo</h2>
+            <p class="hint">Tag as top, bottom, or dress. Flat-lay or hanger shots work well.</p>
+            <form id="garmentForm" class="hint" style="display: flex; flex-direction: column; gap: 0.5rem">
+              <input class="input-field" name="name" placeholder="Name (e.g. Yellow tee)" required />
+              <select class="input-field" name="category" required>
+                <option value="upper_body">Top (upper body)</option>
+                <option value="lower_body">Bottom (lower body)</option>
+                <option value="dresses">Dress</option>
+              </select>
+              <input name="file" type="file" accept="image/*" required />
+              <button type="submit" class="btn">Save to closet</button>
+            </form>
+          </section>
+        </div>
+
+        <section class="panel">
+          <h2>3. Pick an outfit</h2>
+          <p class="hint">Top first, then bottom — the bottom pass runs on the top result so both show.</p>
+          <label class="row" style="margin-top: 0">
+            <input type="checkbox" id="dressMode" />
+            <span>Dress mode (one piece)</span>
+          </label>
+
+          <div id="dressBlock">
+            <h3 class="hint" style="margin: 1rem 0 0.25rem; font-size: 0.85rem">Dresses</h3>
+            <div id="dressGrid" class="garment-grid"></div>
+          </div>
+
+          <div id="splitBlock">
+            <h3 class="hint" style="margin: 1rem 0 0.25rem; font-size: 0.85rem">Tops</h3>
+            <div id="topGrid" class="garment-grid"></div>
+            <h3 class="hint" style="margin: 1rem 0 0.25rem; font-size: 0.85rem">Bottoms</h3>
+            <div id="bottomGrid" class="garment-grid"></div>
+          </div>
+
+          <div class="row" style="margin-top: 1rem">
+            <button type="button" class="btn btn-primary" id="btnTryOn">Try on selection</button>
+            <span id="statusLine" class="status"></span>
+          </div>
+          <p id="errorLine" class="error hidden"></p>
+        </section>
+
+        <section id="resultPanel" class="panel hidden">
+          <h2>Result</h2>
+          <p class="hint">Generative try-on — details may not match reality exactly.</p>
+          <div class="result-wrap" style="margin-top: 1rem">
+            <img id="resultImg" alt="Try-on result" />
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <p>
+        Source repo:
+        <a href="https://github.com/laua997/Outfit-Lab-CC2026" target="_blank" rel="noreferrer"
+          >github.com/laua997/Outfit-Lab-CC2026</a
+        >
+        · Enable GitHub Pages from branch <code>main</code> (root).
+      </p>
+    </footer>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
+</html>
