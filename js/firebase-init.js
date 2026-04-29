@@ -1,7 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import { getAuth, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-database.js";
-import { getStorage } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-storage.js";
 
 /** @type {import("firebase/app").FirebaseApp | null} */
 let app = null;
@@ -15,8 +14,7 @@ export function initFirebase(config) {
   }
   const auth = getAuth(app);
   const db = getDatabase(app);
-  const storage = getStorage(app);
-  return { app, auth, db, storage };
+  return { app, auth, db };
 }
 
 export { GoogleAuthProvider };

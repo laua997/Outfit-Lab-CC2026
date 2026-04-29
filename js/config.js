@@ -4,6 +4,7 @@ export const firebaseConfig = {
   authDomain: "outfit-lab-cc2026.firebaseapp.com",
   databaseURL: "https://outfit-lab-cc2026-default-rtdb.firebaseio.com",
   projectId: "outfit-lab-cc2026",
+  /** From Firebase console; app does not use Storage — field kept for a valid web config object. */
   storageBucket: "outfit-lab-cc2026.firebasestorage.app",
   messagingSenderId: "185858829919",
   appId: "1:185858829919:web:0c24a952b400b7ebddb5ea",
