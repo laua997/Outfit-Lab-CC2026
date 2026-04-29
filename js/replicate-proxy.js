@@ -77,6 +77,10 @@ function parseProxyError(status, raw) {
 
 /** Map noisy HTTP 500 bodies to the same copy as JSON `failed` predictions (and keep crop-retry matching). */
 function friendlyHttpProxyError(status, raw) {
+  const rawLower = String(raw || "").toLowerCase();
+  if (rawLower.includes("list index out of range") || rawLower.includes("index out of range")) {
+    return normalizeTryOnErrorMessage("list index out of range");
+  }
   const msg = parseProxyError(status, raw);
   const lower = msg.toLowerCase();
   if (lower.includes("list index out of range") || lower.includes("index out of range")) {
@@ -85,20 +89,42 @@ function friendlyHttpProxyError(status, raw) {
   return msg;
 }
 
+function buildGarmentDes(name, category) {
+  const n = String(name || "")
+    .trim()
+    .slice(0, 180);
+  const base = n || "garment";
+  const hints = {
+    upper_body: "upper-body shirt or top",
+    lower_body: "lower-body pants or skirt",
+    dresses: "full dress one-piece",
+  };
+  const h = hints[category] || "clothing item";
+  return `${base} (${h})`;
+}
+
 /**
  * Run IDM-VTON via ITP create_n_get proxy.
- * @param {{ humanUrl: string, garmUrl: string, garmentName: string, category: string, crop: boolean, proxyToken?: string }} p
+ * @param {{ humanUrl: string, garmUrl: string, garmentName: string, category: string, crop: boolean, forceDc?: boolean, proxyToken?: string }} p
  */
 export async function runIdmVtonStep(p) {
+  /** @type {Record<string, unknown>} */
+  const input = {
+    human_img: p.humanUrl,
+    garm_img: p.garmUrl,
+    garment_des: buildGarmentDes(p.garmentName, p.category),
+    category: p.category,
+    crop: p.crop,
+    steps: 30,
+    seed: 42,
+  };
+  if (p.forceDc === true) {
+    input.force_dc = true;
+  }
+
   const body = {
     version: IDM_VTON_VERSION,
-    input: {
-      human_img: p.humanUrl,
-      garm_img: p.garmUrl,
-      garment_des: p.garmentName,
-      category: p.category,
-      crop: p.crop,
-    },
+    input,
   };
 
   const headers = { "Content-Type": "application/json" };
@@ -164,19 +190,24 @@ export function isRecoverableModelError(message) {
 }
 
 /**
- * Try crop false then true on recoverable model errors.
+ * Try crop / DressCode flag combinations on recoverable model errors.
  */
 export async function runIdmVtonStepWithCropRetry(p) {
   /** Replicate notes: use crop when the person photo is not ~3:4 — most phone shots need this first. */
-  const attempts = [true, false];
+  const strategies = [
+    { crop: true, forceDc: false },
+    { crop: false, forceDc: false },
+    { crop: true, forceDc: true },
+  ];
   let lastErr = null;
-  for (let i = 0; i < attempts.length; i += 1) {
+  for (let i = 0; i < strategies.length; i += 1) {
     try {
-      return await runIdmVtonStep({ ...p, crop: attempts[i] });
+      const s = strategies[i];
+      return await runIdmVtonStep({ ...p, crop: s.crop, forceDc: s.forceDc });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       lastErr = e instanceof Error ? e : new Error(msg);
-      if (i < attempts.length - 1 && isRecoverableModelError(msg)) continue;
+      if (i < strategies.length - 1 && isRecoverableModelError(msg)) continue;
       throw lastErr;
     }
   }

@@ -77,46 +77,85 @@ function mimeFromProxyFormat(fileFormat) {
   return fileFormat === "png" ? "image/png" : "image/jpeg";
 }
 
+/** IDM-VTON / DressCode-style portrait canvas (3:4) used in many Replicate demos. */
+const IDM_OUT_W = 768;
+const IDM_OUT_H = 1024;
+/** Avoid decoding multi‑megapixel textures at full res in the browser before downscale. */
+const MAX_BITMAP_EDGE = 2048;
+
+function rawJpegFromCanvas(canvas, quality) {
+  const out = canvas.toDataURL("image/jpeg", quality);
+  const i = out.indexOf(",");
+  return i >= 0 ? out.slice(i + 1) : out;
+}
+
 /**
- * Decode base64 image, downscale if larger than maxSide (long edge), re-encode as JPEG.
- * Helps IDM-VTON / parsing pipelines that can throw on extreme resolutions.
+ * Letterbox image into 768×1024 (3:4) JPEG — matches typical IDM inputs and reduces parse failures.
  * @param {string} rawBase64
  * @param {string} mimeType
- * @param {number} maxSide
- * @returns {Promise<{ raw: string, fileFormat: "jpg"|"png" }>}
+ * @returns {Promise<{ raw: string, fileFormat: "jpg" }>}
  */
-export async function clampRawBase64ToMaxSide(rawBase64, mimeType, maxSide = 1024) {
+export async function letterboxRawBase64ToIdmCanvas(rawBase64, mimeType) {
   const dataUrl = dataUrlFromStored(mimeType, rawBase64);
   const img = await new Promise((resolve, reject) => {
     const el = new Image();
     el.onload = () => resolve(el);
-    el.onerror = () => reject(new Error("Could not decode image for resize."));
+    el.onerror = () => reject(new Error("Could not decode image for try-on."));
     el.src = dataUrl;
   });
-  const w = img.naturalWidth || img.width;
-  const h = img.naturalHeight || img.height;
-  if (!w || !h) {
-    return { raw: rawBase64, fileFormat: proxyFormatFromMime(mimeType) };
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  if (!iw || !ih) {
+    throw new Error("Invalid image dimensions.");
   }
-  const long = Math.max(w, h);
-  if (long <= maxSide) {
-    return { raw: rawBase64, fileFormat: proxyFormatFromMime(mimeType) };
+
+  /** @type {CanvasImageSource} */
+  let source = img;
+  const longEdge = Math.max(iw, ih);
+  if (typeof createImageBitmap === "function" && longEdge > MAX_BITMAP_EDGE) {
+    const r = MAX_BITMAP_EDGE / longEdge;
+    const rw = Math.max(1, Math.round(iw * r));
+    const rh = Math.max(1, Math.round(ih * r));
+    try {
+      source = await createImageBitmap(img, { resizeWidth: rw, resizeHeight: rh, resizeQuality: "high" });
+    } catch {
+      source = img;
+    }
   }
-  const scale = maxSide / long;
-  const tw = Math.max(1, Math.round(w * scale));
-  const th = Math.max(1, Math.round(h * scale));
+
+  let sw = iw;
+  let sh = ih;
+  if (source !== img && source instanceof ImageBitmap) {
+    sw = source.width;
+    sh = source.height;
+  }
+
   const canvas = document.createElement("canvas");
-  canvas.width = tw;
-  canvas.height = th;
+  canvas.width = IDM_OUT_W;
+  canvas.height = IDM_OUT_H;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    return { raw: rawBase64, fileFormat: proxyFormatFromMime(mimeType) };
+    throw new Error("Could not prepare image canvas.");
   }
-  ctx.drawImage(img, 0, 0, tw, th);
-  const out = canvas.toDataURL("image/jpeg", 0.9);
-  const i = out.indexOf(",");
-  const raw = i >= 0 ? out.slice(i + 1) : out;
-  return { raw, fileFormat: "jpg" };
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, IDM_OUT_W, IDM_OUT_H);
+
+  const scale = Math.min(IDM_OUT_W / sw, IDM_OUT_H / sh);
+  const dw = Math.max(1, Math.round(sw * scale));
+  const dh = Math.max(1, Math.round(sh * scale));
+  const ox = Math.floor((IDM_OUT_W - dw) / 2);
+  const oy = Math.floor((IDM_OUT_H - dh) / 2);
+  ctx.drawImage(source, ox, oy, dw, dh);
+
+  if (source !== img && typeof source.close === "function") {
+    try {
+      source.close();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  return { raw: rawJpegFromCanvas(canvas, 0.92), fileFormat: "jpg" };
 }
 
 /**
@@ -126,7 +165,7 @@ export async function clampRawBase64ToMaxSide(rawBase64, mimeType, maxSide = 102
  */
 export async function hostRawBase64OnItpProxy(rawBase64, fileFormat) {
   const mime = mimeFromProxyFormat(fileFormat);
-  const sized = await clampRawBase64ToMaxSide(rawBase64, mime, 1024);
+  const sized = await letterboxRawBase64ToIdmCanvas(rawBase64, mime);
 
   const payload = {
     model: "black-forest-labs/flux-schnell",
